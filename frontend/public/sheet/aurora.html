@@ -6245,7 +6245,14 @@
   }
 
   function addInvItem(btnOrCat, containerId) {
-    let cat = typeof btnOrCat === 'string' ? btnOrCat : 'Adventuring Gear';
+    // Callers in HTML pass (button, 'Weapon') — i.e. the category is in
+    // the SECOND arg — while a few code paths call it with the category
+    // string as the first arg. Accept both shapes.
+    let cat;
+    if (typeof btnOrCat === 'string')      cat = btnOrCat;
+    else if (typeof containerId === 'string' && containerId)
+                                            cat = containerId;
+    else                                    cat = 'Adventuring Gear';
     let isArmor = cat === 'Armor';
     let isWep = cat === 'Weapon';
     
