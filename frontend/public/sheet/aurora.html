@@ -8200,6 +8200,15 @@ const SPELL_DB = {
   // 9th Level - auto-added
   'wish': { actionType:'actions', dmg:'\u2014', range:'Self', notes:'Wish' },
 
+  // ── Homebrew Set: Cheeze (custom spells) ───────────────────────
+  'astral flood':            { actionType:'actions',       dmg:'4d10 cold or radiant', range:'Self 30-ft cone', notes:'DEX save, half on success; cold→disadv. on next D20, radiant→Blinded beyond 15 ft' },
+  "mother's embrace":        { actionType:'actions',       dmg:'\u2014',               range:'Self',             notes:'Conc up to 2 rounds; Resistance to ALL damage for 1d10 + family relations rounds' },
+  'inferno lance':           { actionType:'actions',       dmg:'8d8 fire',             range:'120 ft',           notes:'Ranged spell attack; target lit, no Invisible; +2d8 vs burning' },
+  'heart of the blaze':      { actionType:'bonus-actions', dmg:'2d6 fire (reaction)',  range:'Self',             notes:'Conc 1 min; cold res; melee attackers take 2d6; +ability mod to 1 fire dmg/turn; +10 ft speed; bonus action: +2d8 fire on next hit' },
+  'ashen damnation':         { actionType:'actions',       dmg:'4d6 fire / turn',      range:'90 ft',            notes:'Conc 1 min; CON save; Scorched: disadv. CON saves, no HP regen, 4d6 fire/turn, −10 ft speed' },
+  'cataclysmic sunfire':     { actionType:'actions',       dmg:'6d10 fire + 6d10 radiant', range:'150 ft',       notes:'30-ft radius sphere; DEX save, half on success; difficult terrain +2d6 fire on enter/end turn' },
+  'flames of the final stand': { actionType:'bonus-actions', dmg:'+3d8 fire',          range:'Self',             notes:'Conc 1 min; fire immunity; 50 temp HP; +3d8 fire to attacks/spells; death-save trigger: 8d8 fire to nearby; spell end: 10d8 fire DEX save in 30 ft, gain exhaustion' },
+
 };
 
 function spellActionColumn(spellName, castTime) {
@@ -10346,6 +10355,19 @@ var SB_SPELLS = [
 ['True Polymorph','9th','Transmutation','Action','yes','V, S, M','PHB\'24','Choose one creature or nonmagical object within range. It shape-shifts into a different creature (any kind with CR equal to or less than the target\'s CR or level) or a nonmagical object, or an object into a creature (CR 9 or lower). An unwilling creature makes a WIS save. If you maintain Concentration for the full hour, the transformation lasts until dispelled. Creature-to-creature: target retains its Hit Points, alignment, and personality. Object-to-creature: the creature is Friendly and obeys your commands (for 1 hr; then acts independently).'],
 ['True Resurrection','9th','Necromancy','1 Hr.','no','V, S, M','PHB\'24','You touch a creature that has been dead for no longer than 200 years and that didn\'t die of old age. The creature is revived with all its Hit Points. This spell closes all wounds, neutralizes any poison, cures all magical contagions, and lifts any curses affecting the creature when it died. The spell replaces damaged or missing organs and limbs. If the creature was Undead, it is restored to its non-Undead form. The spell can provide a new body if the original no longer exists.'],
 ['Weird','9th','Illusion','Action','yes','V, S','PHB\'24','You create illusory terrors in the minds of creatures in a 30-foot-radius Sphere. Each creature of your choice in the Sphere makes a WIS save. On a failed save, a target takes 10d10 Psychic damage and has the Frightened condition for the duration. On a success, it takes half damage only. A Frightened target makes a WIS save at the end of each of its turns — on a fail it takes 5d10 Psychic damage; on a success the spell ends on that target.'],
+
+// ── Homebrew Set: Cheeze ─────────────────────────────────────────
+// Custom user-supplied spells. Treated like canonical entries by the
+// spell-list and detail modal; their effect chips + ranges come from
+// SPELL_DEFAULT_META / SPELL_DB below so they sync with the action
+// board, mini-tag colouring, and homebrew override layer.
+['Astral Flood','3rd','Evocation','Action','no','V, S, M','Cheeze','You channel energy from the Astral Sea to unleash a torrent of magic from you in a 30-foot Cone. Each creature in the Cone must succeed on a Dexterity saving throw or take 4d10 Cold or Radiant damage (chosen when you cast this spell). Your choice of damage type determines an additional effect:\n• Cold Damage. The target has Disadvantage on the next D20 Test it makes before the end of your next turn.\n• Radiant Damage. The target can see only within 15 feet of itself, and it has the Blinded condition for everything beyond that distance until the end of your next turn.'],
+['Mother\'s Embrace','3rd','Transmutation','Action','yes','V, S','Cheeze','Mark a target and that target will be protected by red rosy sparkling wings. That grants the target Resistance to all types of damage for 1d10 + family relations, for up to 2 rounds. At Higher Levels: When you cast this spell using a spell slot of 4th level or higher, the maximum number of rounds is increased by 1 for each slot level above 3rd.'],
+['Inferno Lance','3rd','Evocation','Action','no','V, S, M','Cheeze','You condense a spear of white-hot fire and hurl it at a creature you can see within range. Make a ranged spell attack against the target. On a hit, the target takes 8d8 fire damage and ignites with magical flames. Until the end of its next turn, it sheds bright light in a 20-foot radius and cannot benefit from being invisible. If the target is already affected by a spell that deals fire damage or is currently burning, it takes an additional 2d8 fire damage. At Higher Levels: When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d8 for each slot level above 3rd.'],
+['Heart of the Blaze','4th','Transmutation','Bonus','yes','V, S','Cheeze','Your blood becomes molten flame and your body radiates overwhelming heat. For the duration: You gain resistance to cold damage. Whenever a creature hits you with a melee attack while within 10 feet of you, it takes 2d6 fire damage. Once per turn when you deal fire damage, add your spellcasting ability modifier to one damage roll. Your speed increases by 10 feet. In addition, as a bonus action on each of your turns, you may wreathe a weapon you are holding or your hands in flame. The next successful attack you make before the end of the turn deals an extra 2d8 fire damage.'],
+['Ashen Damnation','6th','Necromancy','Action','yes','V, S, M','Cheeze','You brand a creature with a curse of soul-consuming fire. One creature you can see within range must make a Constitution saving throw. On a failed save, it becomes Scorched for the duration. While Scorched, the creature: Has disadvantage on Constitution saving throws. Cannot regain hit points. Takes 4d6 fire damage at the start of each of its turns. Has its speed reduced by 10 feet. The target may repeat the saving throw at the end of each of its turns, ending the effect on a success. On a successful initial save, the creature takes 4d6 fire damage and suffers no additional effects.'],
+['Cataclysmic Sunfire','7th','Evocation','Action','no','V, S, M','Cheeze','You create a miniature sun and launch it toward a point you can see within range. The sun explodes in a 30-foot-radius sphere centered on that point. Each creature in the area must make a Dexterity saving throw. On a failed save, a creature takes 6d10 fire damage and 6d10 radiant damage. On a successful save, it takes half as much damage. The blast leaves behind blazing terrain until the start of your next turn. The area becomes difficult terrain, and any creature entering it for the first time on a turn or ending its turn there takes 2d6 fire damage. Nonmagical objects not worn or carried ignite.'],
+['Flames of the Final Stand','8th','Transmutation','Bonus','yes','V, S, M','Cheeze','You become the living embodiment of a warrior\'s final defiance, blazing brighter as death approaches. For the duration: You gain immunity to fire damage. You gain 50 temporary hit points. You shed bright light in a 60-foot radius and dim light for an additional 60 feet. Your attacks and spells deal an additional 3d8 fire damage. If you would be reduced to 0 hit points, you are instead reduced to 1 hit point, and each creature of your choice within 30 feet takes 8d8 fire damage. When the spell ends, whether naturally or because your concentration is broken, the flames consuming you erupt outward in a final explosion. Each creature of your choice within 30 feet must make a Dexterity saving throw. A creature takes 10d8 fire damage on a failed save, or half as much on a successful one. After the eruption, you gain one level of exhaustion. "A flame\'s final moment is often its brightest."'],
 ];
 
 const LEVEL_ORDER = ['Cantrip','1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
@@ -10521,10 +10543,35 @@ function saveCurrentSpellNote(spellName) {
 // Stores editable stats for custom/homebrew spells:
 // { homebrewMeta: { "My Spell": { school, castTime, range, aoe, components, duration, name } } }
 
+// ─────────────────────────────────────────────────────────────────
+// SPELL_DEFAULT_META — built-in effect chips (Damage / Buff / etc)
+// for canonical & homebrew-set spells. Used as a *fallback* by
+// getHomebrewMeta when the character has no per-character override,
+// so newly added spell-sets ship with their effect tags pre-coloured
+// without forcing every character to re-author them.
+// ─────────────────────────────────────────────────────────────────
+const SPELL_DEFAULT_META = {
+  // ── Cheeze homebrew set ──
+  'Astral Flood':            { spellType:'Damage', spellTypeDetail:'4d10 cold or radiant'   },
+  "Mother's Embrace":        { spellType:'Buff',   spellTypeDetail:'Resistance to ALL dmg'  },
+  'Inferno Lance':           { spellType:'Damage', spellTypeDetail:'8d8 fire'               },
+  'Heart of the Blaze':      { spellType:'Buff',   spellTypeDetail:'+10 ft, +ability fire mod, retaliate 2d6 fire' },
+  'Ashen Damnation':         { spellType:'Debuff', spellTypeDetail:'Scorched: 4d6 fire/turn, no heals' },
+  'Cataclysmic Sunfire':     { spellType:'Damage', spellTypeDetail:'6d10 fire + 6d10 radiant'},
+  'Flames of the Final Stand': { spellType:'Buff', spellTypeDetail:'Fire immunity + 50 THP + 3d8 fire' },
+};
+window.SPELL_DEFAULT_META = SPELL_DEFAULT_META;
+
 function getHomebrewMeta(spellName) {
   try {
     const data = getSpellData();
-    return (data.homebrewMeta && data.homebrewMeta[spellName]) || {};
+    const user = (data.homebrewMeta && data.homebrewMeta[spellName]) || null;
+    const base = SPELL_DEFAULT_META[spellName] || null;
+    // Merge: built-in defaults provide the floor, user overrides win
+    // on any individual key (so renames, custom effect text etc still
+    // take precedence).
+    if (!user && !base) return {};
+    return Object.assign({}, base || {}, user || {});
   } catch(e) { return {}; }
 }
 
