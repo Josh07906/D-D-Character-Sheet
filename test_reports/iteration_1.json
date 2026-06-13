@@ -1,0 +1,60 @@
+{
+  "summary": "Frontend-only E2E review of 6 modifications on /sheet/aurora.html (standalone, no React shell login needed). Globals confirmed present (showSpellDetailByName, openManualActionModal, addSessionNote, deleteSessionNote, syncActionBoard, saveSpellTypeForKnown, _collectAllData, _restoreAllData, getSpellAtk, SPELL_TYPE_COLORS). 4/6 features pass functionally; 2 critical issues found (manual-action save throws, Lore Widget IDs do not match spec).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Manual Action editor (openManualActionModal/saveManualAction)",
+        "issue": "Saving a manual action throws 'Cannot read properties of null (reading querySelector)' in page console; after Save click no card is rendered on the action board and the action is NOT persisted in _collectAllData() (no manualActions / actions key in collected snapshot). All on-screen ability-picker UX before Save works perfectly (STR+Prof => +2 readOnly, STR no-Prof => +0, Spell => uses getSpellAtk +2, blank => readOnly off, preview cleared).",
+        "selector": "#action-edit-ability / #action-edit-proficient / #action-edit-atk / Save button inside action-edit modal",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Lore Widget independent colors in Theme panel",
+        "issue": "Spec requires color inputs with ids browse-lore-bg / browse-lore-header-bg / browse-lore-text / browse-lore-heading / browse-lore-accent. The 'Lore Widget' section IS visually rendered inside 'Browse Panels — independent colors' with all 5 expected labels (Card Background, Header Background, Body Text, Entry Heading, Accent), but the inputs use data-key='lore-...' (presumably) instead of the specified id attributes. As a result, programmatic selectors targeting #browse-lore-bg etc. fail. Need to either add the spec ids or update the spec. The actual color-input id list contains no 'lore' ids; only data-key based pickers (e.g. data-key='spell-panel-bg').",
+        "selector": "#browse-lore-bg, #browse-lore-header-bg, #browse-lore-text, #browse-lore-heading, #browse-lore-accent",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Spellcasting tab spell list rows",
+        "issue": "After adding Fireball with effect=Damage / detail='8d6 fire damage', the spell-detail modal correctly shows two new .spell-mini-tag elements ('Damage' and '8d6 fire damage') AND persistence on reopen works (saveSpellTypeForKnown ok). However document.querySelectorAll('.spell-row') in the Spellcasting tab returns 0 — could not verify the requirement 'list row for Fireball must render two extra .spell-mini-tag inside .spell-mini-tags row'. Possible class-name mismatch or that the row only renders after a class is selected. Worth double-checking the actual list-row className used by _spellMiniTags.",
+        "selector": ".spell-row .spell-mini-tags .spell-mini-tag",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "_collectAllData snapshot for manual actions",
+        "issue": "Snapshot top-level keys are [_aurora_version,_saved_at,meta,text,abilityBases,fields,html,spells,themeSaveToCharacter,themeRoles,theme]. No 'manualActions' / 'actions' key; saved actions appear to be DOM-only via html.* blob. Combined with the save-time pageerror this means action customizations are at risk of NOT round-tripping through Quick Save → reload.",
+        "affected_selectors": ["#action-edit-ability","#action-edit-proficient"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix saveManualAction pageerror 'Cannot read properties of null (reading querySelector)' — likely a null parent/modal lookup at save time; reproduce via openManualActionModal('actions') → fill name → pick STR → click Save. After fix, ensure manual action is persisted in _collectAllData (either via dedicated manualActions array or guaranteed via html.action-board innerHTML) AND that editManualAction re-opens modal with saved ability/proficient preserved.",
+    "Add the spec'd id attributes (browse-lore-bg, browse-lore-header-bg, browse-lore-text, browse-lore-heading, browse-lore-accent) to the Lore Widget color input rows in BROWSE_PANEL_DEFS so external/automation selectors work. Confirm Card Background picker writes --lore-bg on :root and the × reset clears it.",
+    "Verify the Spellcasting tab spell list actually renders .spell-row (or whatever the real class is) when a spell is added; confirm _spellMiniTags is called from that renderer so 'Damage' / '8d6 fire damage' mini-tags appear on the list row (mini-tags DO render inside the spell-detail modal, persistence is fine).",
+    "Manually retest Equipped-Weapon → Action card flow (TEST 7) — automated test could not seed a weapon. After adding a weapon via Browse, set Description='Flametongue: +2d6 fire damage' and Notes='requires attunement' in #wpop-description / #wpop-notes, equip, call syncActionBoard(), confirm both texts appear in the auto action card.",
+    "Add data-testid attributes (only #action-edit-* and #sd-spelltype* already exist for action/spell; lore-widget rows need them too) to ease future automation."
+  ],
+  "critical_code_review_comments": [
+    "aurora.html is 20,518 lines — should be split into modules (sheet-core, spell-detail-modal, theme-panel, manual-actions, notes) for maintainability and to avoid the kind of null-lookup bug observed in saveManualAction.",
+    "Manual-action persistence path appears DOM-serialization-only (no dedicated manualActions array in _collectAllData). This is fragile — re-rendering after _restoreAllData may lose computed ability/proficient flags. Recommend storing manualActions: [{name, ability, proficient, atk, ...}] explicitly.",
+    "Theme panel uses data-key based pickers everywhere (consistent) but the review request specifies hard id attributes — mismatch should be reconciled before shipping.",
+    "Confirm dialogs via window.confirm() are correctly fired for session-note delete (verified) — good. Consider wrapping in a single util to make future deletes (homebrew spell, manual action) equally testable.",
+    "_collectAllData stores html (innerHTML) for major panels — large payload, but works for round-trip. Ensure stripped of transient classes / event listeners before persistence."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "~65% (4/6 features fully verified, 2 critical defects)" },
+  "test_credentials": "admin / admin123 (React shell) — not used because sheet was tested directly at /sheet/aurora.html per agent_to_agent_context_note",
+  "seed_data_creation": "Test character via splash 'New Character' button on /sheet/aurora.html. Custom spell 'My Test Custom Spell' added via showSpellDetailByName. Fireball added to user spell list at 3rd level (visible in collected snapshot).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All tests run directly against https://hero-chronicle-7.preview.emergentagent.com/sheet/aurora.html (no iframe, no login). Click 'New Character' on splash to enter the editable sheet. Use window.* helpers documented in the request. Dialog handler must be attached BEFORE clicking .notes-session-del to capture window.confirm. To populate weapons for TEST 7 you must use the Browse button on inventory (no global helper to seed). For the action board, the action editor modal must be opened with openManualActionModal('actions'); ability picker UI is working but Save throws an internal null-reference. Spell mini-tags ARE working inside the spell-detail modal — verify list rendering by inspecting the actual class names emitted by the spellcasting-tab renderer (not necessarily '.spell-row').",
+  "rca of the issue": {
+    "manual_action_save": "Console emits 'Cannot read properties of null (reading querySelector)' synchronously when the Save button inside the action-edit modal is clicked. Symptom: no card appears on action board; _collectAllData has no manualActions key. Likely location: saveManualAction (~line 8258+) accessing a parent container with querySelector when the action modal was opened from the 'actions' source — the container element resolved to null. Repro: openManualActionModal('actions') → set name=Test → ability=str → Save.",
+    "lore_widget_ids": "BROWSE_PANEL_DEFS adds the Lore Widget group, and the section renders with the right labels, but the color inputs use the same data-key pattern as Spell Detail/Browser rows (data-key=...) rather than the explicit id='browse-lore-*' attributes called out in the spec. Either add ids OR update the spec/tests to use data-key selectors."
+  }
+}
