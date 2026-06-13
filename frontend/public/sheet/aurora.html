@@ -4208,6 +4208,17 @@
       if (el) data.html[id] = el.innerHTML;
     });
 
+    // MANUAL ACTIONS — the hidden <input id="manual-actions-store">
+    // lives outside RICH_HTML_IDS and is the source of truth for the
+    // ability/proficient flags + atk/dmg/notes on each card. Persist it
+    // explicitly so reloads re-run renderManualActions with the live
+    // recompute (so STR/DEX changes flow through correctly).
+    try {
+      if (typeof getManualActions === 'function') {
+        data.manualActions = getManualActions();
+      }
+    } catch(_e) {}
+
     // PORTRAIT IMAGE — extract the URL from the inline backgroundImage style
     try {
       const portrait = document.getElementById('char-portrait');
@@ -4357,6 +4368,15 @@
     if (typeof filterLoreEntries          === 'function') filterLoreEntries();
     if (typeof updateNotesWordCount       === 'function') updateNotesWordCount();
     if (typeof _ensureSessionDeleteButtons === 'function') _ensureSessionDeleteButtons();
+    // Restore manual-action JSON store, then re-render the cards so the
+    // ability-driven `atk` recomputes from the freshly-restored ability
+    // bases (rather than relying on stale HTML from the previous save).
+    if (Array.isArray(data.manualActions) && typeof setManualActions === 'function') {
+      try {
+        setManualActions(data.manualActions);
+        if (typeof renderManualActions === 'function') renderManualActions();
+      } catch(_e) {}
+    }
     // Non-contenteditable text fields (species, etc.)
     if (data.fields) {
       Object.entries(data.fields).forEach(([id, txt]) => {

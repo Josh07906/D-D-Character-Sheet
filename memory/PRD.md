@@ -1,5 +1,132 @@
 # Aurora — D&D 2024 Character Codex (PRD)
 
+## 2026-06 — User-requested fixes (custom spells / notes delete / weapon notes / action ability / spell effect / lore theme)
+
+### Scope (frontend/public/sheet/aurora.html)
+1. **Custom Spell description was not saving** — `saveCurrentHomebrewMeta`
+   was saving the meta chips but never calling `saveSpellNote()` for the
+   user's typed-in description in `#sd-personal-notes`. Fixed: save the
+   note alongside the meta (under the *new* spell name to survive renames).
+
+2. **Notes — delete confirmation** — Each session `<h3>` now carries a
+   `✕` `.notes-session-del` (contenteditable=false) that becomes visible
+   on hover and triggers `deleteSessionNote(btn)` → `confirm("Delete "<session>"?")`
+   → removes the H3 + every following sibling up to the next H3 (and any
+   leading/trailing `<hr>`). Back-fill helper `_ensureSessionDeleteButtons()`
+   adds buttons to legacy notes restored from older saves.
+
+3. **Equipped Weapon notes/description visible on Action Card** — The
+   action board's auto-weapon card combined only intrinsic weapon
+   properties (Finesse, Light, …). Now combines `data.description` +
+   `data.wpopNotes` (the popup's Description + Notes fields) into the
+   action card's `notes` HTML, so magic weapons surface their unique
+   abilities on the board without re-opening the popup.
+
+4. **Action Widget — "Based on" ability dropdown + proficiency toggle**
+   - New `#action-edit-ability` select (STR/DEX/CON/INT/WIS/CHA/Spell Attack/Manual)
+     and `#action-edit-proficient` checkbox on the action editor modal.
+   - `computeActionAtk(abilKey, proficient)` reads `getAbilityMod(abilKey) +
+     getProfBonus()` (or `getSpellAtk()` for the "spell" branch) and locks
+     `#action-edit-atk` to that value (readOnly) when an ability is selected.
+   - `renderManualActions()` recomputes the live atk from the saved ability
+     so STR/DEX score changes or proficiency-bonus level-ups flow through
+     to every ability-driven card automatically.
+   - Manual actions now also persist in `data.manualActions` (was DOM-only
+     in a hidden `<input id="manual-actions-store">`), with `_restoreAllData`
+     re-populating + re-rendering. Eliminates a long-standing risk that
+     ability/proficient flags were lost across save/load.
+
+5. **Spell Effect chip (Damage / Buff / Debuff / Healing / Utility / Control / Summon)**
+   + free-text Effect Detail (e.g. "3d8 fire damage").
+   - Available for **both** known PHB spells (`#sd-spelltype` / `#sd-spelltype-detail`
+     in the meta strip, auto-saves on change/blur via `saveSpellTypeForKnown()`)
+     and homebrew spells (`#hb-spelltype` / `#hb-spelltype-detail` in the
+     homebrew form, saved with the rest of `homebrewMeta`).
+   - Persisted inside the same `data.homebrewMeta[spellName]` map so it
+     travels with the character JSON.
+   - Surfaces on the spell-list mini-tag row via `_spellMiniTags()` so
+     scanning the spell list shows effect + detail at a glance.
+   - Coloured per new `SPELL_TYPE_COLORS` palette (Damage red, Buff green,
+     Debuff purple, Healing gold, Utility blue, Control orange, Summon indigo).
+
+6. **Lore Widget independent colors** — Added 5 new theme rows to the
+   existing "Browse Panels — independent colors" panel:
+   - Card Background (`--lore-bg`)
+   - Header Background (`--lore-header-bg`)
+   - Body Text (`--lore-text`)
+   - Entry Heading (`--lore-heading`)
+   - Accent (`--lore-accent`, used by border + drag handle + drag-over outline)
+   The lore card / header / heading / body CSS all fall back to the existing
+   parchment/gold/ink palette when no override is set, so the default look
+   is unchanged. Overrides persist via the same `data.browseOverrides`
+   blob already in use for spell-detail/catalog.
+
+### Files touched (single file)
+- `frontend/public/sheet/aurora.html`
+  - `:root` — added 5 lore CSS custom properties
+  - `.lore-entry` / `.lore-entry-header` / `.lore-heading` / `.lore-body`
+    CSS now reads through the new vars with sane fallbacks
+  - Notes editor — initial Session H3 + `addSessionNote` insert the new
+    `.notes-session-del` ✕; new `deleteSessionNote()`,
+    `_ensureSessionDeleteButtons()`
+  - Spell detail modal — known-spell meta strip now also renders
+    `#sd-spelltype` + `#sd-spelltype-detail`; homebrew form picks up
+    `#hb-spelltype` + `#hb-spelltype-detail`
+  - `saveCurrentHomebrewMeta` — also calls `saveSpellNote()`
+  - `saveSpellTypeForKnown` — new helper, persists effect + detail for
+    PHB spells through the same homebrewMeta channel
+  - `_spellMiniTags` — emits the new effect/effect-detail chips on every
+    spell row; `SPELL_TYPE_COLORS` palette added
+  - Action editor modal HTML — new ability `<select>` + proficient checkbox
+    + live atk preview
+  - `openManualActionModal`, `editManualAction`, `editAutoActionCard`,
+    `saveManualAction`, `renderManualActions` — all wired to the new
+    ability/proficient fields; live recompute via `computeActionAtk`
+  - `BROWSE_PANEL_DEFS` — added Lore Widget group with 5 keys
+  - `syncActionBoard` (equipped weapons branch) — combines props +
+    description + notes into the action card's notes HTML
+  - `_collectAllData` + `_restoreAllData` — now persist & restore
+    `data.manualActions` explicitly
+
+### Verified (manual + screenshot)
+- Custom spell "My Test Custom Spell" → fill description + effect + detail
+  → click Save → reopen: description **and** effect chip **and** detail all
+  retained.
+- Notes Session 1 ✕ button → `confirm("Delete...")` → block removed; new
+  sessions auto-get a delete button.
+- Equipped Flametongue weapon (`isEquippable + isEquipped + category=Weapon`)
+  with `description = "Flametongue: +2d6 fire damage on hit"` + `wpopNotes =
+  "Requires attunement"` → action card's `.action-card-notes` renders
+  both strings combined with the intrinsic props.
+- Action editor: pick STR → `#action-edit-atk` becomes `+2` (mod 0 + prof 2),
+  readOnly, preview reads `Auto: +2  (STR + Prof)`. Toggle prof off → `+0`.
+  Pick Spell → reads from `getSpellAtk()`. Save → `data.manualActions[0] =
+  {column:"actions", name:"Sword Strike", atk:"+2", dmg:"1d8+3 slashing",
+   dc:"", range:"", notes:"", ability:"str", proficient:true}`. Round-trip
+  collect → wipe → restore preserves the entry intact.
+- Fireball detail modal → set Effect=Damage / Detail="8d6 fire damage" →
+  reopen: retained. Spell-list mini tags show "Damage" + "8d6 fire damage".
+- Theme panel → Browse Panels section now lists `Lore Widget` group with
+  all 5 pickers (data-testid="browse-lore-bg" etc.); changing Card
+  Background paints `--lore-bg` on `:root` and re-tints lore cards.
+
+## Tech stack (unchanged)
+- FastAPI backend (JWT, Supabase storage for characters)
+- React 19 shell (`/login`, `/sheets`, `/sheets/:id`)
+- Aurora character sheet — self-contained ~20.5k-line HTML in iframe at `/sheet/aurora.html`
+- Netlify-style single-platform deploy supported (`netlify.toml`, `_redirects`)
+
+## Test credentials
+- Admin: `admin` / `admin123` (auto-seeded on backend boot from `/app/backend/.env`)
+
+## Backlog
+- P2 — Add data-testid attributes to lore-widget theme inputs by ID (already on data-testid; spec'd id selectors would need additional attributes)
+- P2 — Fix pre-existing bug: `addInvItem(button, 'Weapon')` ignores 2nd arg, creating items with category="Adventuring Gear" instead of "Weapon"
+- P2 — Split aurora.html into modules for maintainability (currently ~20.5k LOC monolith)
+- P3 — Per-user lock in Supabase storage
+- P3 — Tighten frontend portrait upload cap (~150 KB pre-base64)
+
+
 ## 2026-02 — Skill stability, per-skill modifiers, action-slot for any item, multiclass persistence
 
 ### Bug fixes & feature additions on `frontend/public/sheet/aurora.html`
