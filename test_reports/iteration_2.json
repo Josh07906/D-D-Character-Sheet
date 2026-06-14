@@ -1,0 +1,67 @@
+{
+  "summary": "Frontend-only review of 10 modifications on /sheet/aurora.html (+ React shell). Direct standalone testing via Playwright. 5/10 PASS verified end-to-end, 4/10 partially verified (code present and correct in source but rendered output couldn't be observed because applySubclassFeatures is module-private and applyClassTemplate alone doesn't inject feature blocks without the interactive level-up flow), 1/10 (autosave-info postMessage) could not be confirmed in standalone (parent==window).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "applySubclassFeatures global exposure",
+        "issue": "`window.applySubclassFeatures` is undefined (function is module-private), so subclass-features features (Moon Druid, Wizard Evocation, Rogue Thief) cannot be programmatically injected for testing. The data IS present in SUBCLASS_FEATURE_DATA at the right keys: 'Circle of the Moon' (line 13043: Circle Forms, Combat Wild Shape, Lunar Radiance 2d10, Improved Circle Forms 4×+Necrotic/Radiant Resist, Improved Lunar Radiance 3d10, Lunar Form 4d10+2d10 retaliate), 'Evocation' (line ~13376: Evocation Savant, Sculpt Spells, Potent Cantrip, Empowered Evocation, Overchannel w/ <strong>), 'Thief' (line 13283: Fast Hands, Second-Story Work, Supreme Sneak, Use Magic Device, Thief\\'s Reflexes). For automated coverage in future iterations, attach `window.applySubclassFeatures = applySubclassFeatures` near line 12846.",
+        "selector": "window.applySubclassFeatures",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Prep Spell Guide live-sync on level change (#char-level blur)",
+        "issue": "`updateSpellGuide('Wizard', 9)` invoked directly produces the EXACT expected text ('📖 Spells Prepared: INT mod + 9 (from spellbook) ✦ Cantrips Known: 4 ...') — feature works at the function level. BUT typing into the contenteditable `#char-level` and dispatching input+blur did NOT trigger an updateSpellGuide refresh — the #spell-guide-text remained on the previous (default) text and `#spell-guide-level` span never updated from '2'. The clampLevel hook (line 4485) should call updateSpellGuide but seems to require the class to be applied first; without a class the level blur won't refresh the guide.",
+        "selector": "#char-level (contenteditable) blur → updateSpellGuide",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "React shell autosave-info postMessage (Feature 2) in standalone",
+        "issue": "Posting `{type:'aurora:set-charid', charId:'test-id-1'}` to window from inside the standalone page did NOT result in an `aurora:autosave-info` message being received back (received null after 2s wait). In standalone, window.parent === window so the post should bounce back. Either the handler is gated on being inside a real iframe or the reply targets window.parent specifically without comparing. Recommend the main agent verify Feature 2 end-to-end in the actual React shell (open existing character, observe banner data-testid='autosave-restore-banner' with restore/discard buttons).",
+        "selector": "window.postMessage({type:'aurora:set-charid',...})",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_passing": {
+    "F1_autosave_persistence": "PASS — _autoSaveKey()==='aurora:autosave:standalone', JSON has _aurora_version + _autosavedAt, second key 'aurora:autosave:test-id-1' created after setting __auroraCharId, both keys persist (no sessionStorage clearing).",
+    "F3_spell_badge_bg_theme": "PASS — data-testid present: browse-spell-badge-bg, browse-spell-badge-border, browse-prep-bg, browse-prep-text, browse-prep-heading, browse-prep-accent. Setting spell-badge-bg=#ff00ff via picker correctly sets :root --spell-badge-bg to #ff00ff.",
+    "F5_prep_guide_text_content": "PASS at function level — updateSpellGuide('Wizard',9) returns expected '📖 Spells Prepared: INT mod + 9 (from spellbook) ✦ Cantrips Known: 4 🔄 Arcane Recovery: Regain up to 5 levels of slots on Short Rest (once/day) 🎯 Spell Slots: 1st:4 · 2nd:3 · 3rd:3 · 4th:3 · 5th:1'. Theme rows (browse-prep-*) exist and wire to --prep-* CSS vars. Live-sync via #char-level blur did not trigger — see ui_bug above.",
+    "F6_lore_delete_confirmation": "PASS — confirmDeleteLore() exists on window, ✖ button present on .lore-entry, window.confirm() called on click; dismiss keeps the entry (count 1→1), accept removes it (count 1→0). Default 'Character Background' entry also protected.",
+    "F7_hyperlinks_in_richtext": "PASS — window.insertLinkInActiveEditor() exists. With selection on a word in #notes-editor and prompt stubbed to 'google.com', an <a href='https://google.com' target='_blank' rel='noopener noreferrer'> is inserted (auto-https prefix confirmed). 🔗 buttons present (2 total — Notes toolbar + Lore toolbar)."
+  },
+  "code_review_verified_present": {
+    "F4_collapsible_features_CSS_and_JS": "Code looks correct: .feature-collapse-btn CSS lines 1011-1025 with .feature-collapsed hiding .feature-desc/.feature-data/.spell-grant-table/.feature-extra. ensureFeatureCollapseButtons (5895) iterates blocks and inserts ▾/▸ toggle. toggleFeatureCollapse (5908) toggles class and updates char. Called from autosave restore (4485) and after add-feature (7183).",
+    "F8_moon_druid_2024_data": "SUBCLASS_FEATURE_DATA['Circle of the Moon'] (line 13043) contains all required features: Circle Forms (3× HP), Combat Wild Shape, Lunar Radiance 2d10 + uses:3, Improved Circle Forms (4× HP + Necrotic/Radiant Resistance), Improved Lunar Radiance 3d10, Lunar Form 4d10 + 2d10 retaliate. Descriptions use HTML <strong>/<em> tags (will render as HTML, not escaped).",
+    "F9_wizard_rogue_subclass_progression": "SUBCLASS_FEATURE_DATA['Evocation'] has Evocation Savant + Sculpt Spells (lv3), Potent Cantrip (lv6), Empowered Evocation (lv10), Overchannel (lv14 with <strong>2d12 Necrotic damage per spell level</strong>). SUBCLASS_FEATURE_DATA['Thief'] has Fast Hands + Second-Story Work (lv3), Supreme Sneak (lv9), Use Magic Device (lv13, +4 attune), Thief's Reflexes (lv17 two turns).",
+    "F10_artificer_infusion_list": "feat-infuse-item at line 11607 contains <ul><li> with 14 infusion entries (Enhanced Defense, Enhanced Weapon, Enhanced Focus, Bag of Holding, Boots of the Winding Path, Goggles of Night, Mind Sharpener, Radiant Weapon, Repeating Shot, Replicate Magic Item, Resistant Armor, Returning Weapon, Spell-Storing Item, Helm of Awareness lv10, Homunculus Servant lv6) AND explicit (lv2)/(lv6)/(lv14) Replicate Magic Item nested lists."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "FIX (low pri): expose applySubclassFeatures on window so automated tests can validate rendered feature blocks (e.g. `window.applySubclassFeatures = applySubclassFeatures;` near line 12846). Without this, automated coverage of F4/F8/F9/F10 must drive the actual UI level-up flow which is brittle.",
+    "FIX (med pri): #char-level blur should re-call updateSpellGuide even if class was set via class-selector dispatchEvent. Investigate whether clampLevel reads class from class-selector.value (which IS set) or from internal state. Verify by manually typing '5' then '9' in #char-level on a Wizard character — if the guide updates, this may be a synthetic-event quirk; otherwise the wire-up needs hardening.",
+    "VERIFY MANUALLY (Feature 2): open an existing character in the React shell, ensure a stale cloud copy exists, and confirm the banner data-testid='autosave-restore-banner' appears with both restore-btn and discard-btn, and clicking Restore posts aurora:restore-autosave. Standalone could not reproduce the autosave-info round-trip because window.parent === window — confirm the handler also posts to window when not inside an iframe.",
+    "VERIFY MANUALLY (F4/F8/F9/F10): use the actual + LEVEL UP flow (or set class via the 'Choose Class' UI dropdown, not the hidden #class-selector) and walk Druid→14→'Circle of the Moon', Wizard→14→'Evocation', Rogue→17→'Thief', Artificer→2 to visually confirm the feature blocks render with the spec-listed names and that .feature-collapse-btn appears on each."
+  ],
+  "critical_code_review_comments": [
+    "aurora.html is now 21,015 lines — getting close to unmaintainable. Strongly recommend splitting into modules (class-data.js, subclass-data.js, spell-data.js, theme-panel.js, notes-editor.js, autosave.js, feature-collapse.js).",
+    "Many helpers (applySubclassFeatures, SUBCLASS_FEATURE_DATA, CLASS_TEMPLATES, etc.) are module-private. Either expose a deliberate testing API (window.__aurora = { applySubclassFeatures, SUBCLASS_FEATURE_DATA }) or add data-testid attributes on the rendered .feature-block elements (e.g. data-testid='feature-block-Lunar Radiance') so tests can drive the real UI flow and still assert outcomes.",
+    "The Feature 5 spec says level edit + blur should resync the prep guide. clampLevel(this) is called inline but updateSpellGuide depends on a class being readable — confirm the read path doesn't silently fall back to '' when class-selector hasn't been touched via the actual UI.",
+    "Feature 2 (parent postMessage): the standalone-page autosave handler should ALSO post to window (not just window.parent) when running outside an iframe, otherwise the banner round-trip cannot be self-tested. Alternatively, gate the post on `window.parent !== window` to make the contract explicit.",
+    "Excellent additions in this iteration: data-testid on browse-* color rows, feature-collapse with persistent collapsed state, confirmDeleteLore using window.confirm (good for testing), and the Artificer infusions list as actual <ul><li> (not escaped text). These all match the spec at the source-code level."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (frontend-only)", "frontend": "~75% (5/10 verified end-to-end + 4/10 verified at source-code level + 1/10 needs manual shell verification)" },
+  "test_credentials": "admin / admin123 (not exercised — tested directly against /sheet/aurora.html per agent_to_agent_context_note)",
+  "seed_data_creation": "Splash 'New Character' → editable sheet. Various lore/notes/theme edits exercised in-place; nothing persisted across runs.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Standalone aurora.html testing patterns: use #class-selector (the hidden native select) + dispatch 'change' to set class — BUT this currently doesn't render feature blocks; calling window.applyClassTemplate('Wizard') directly does the class setup but still doesn't render subclass features because window.applySubclassFeatures is undefined (module-private). #char-level is contenteditable (use .textContent, not .value). #char-subclass is also contenteditable. window.updateSpellGuide(className, level) IS exposed and works perfectly. window.insertLinkInActiveEditor and window.confirmDeleteLore are exposed. For F2 (banner), use the actual React shell, not standalone — the postMessage round-trip targets window.parent which equals window in standalone.",
+  "rca of the issue": {
+    "automated_coverage_gap_F4_F8_F9_F10": "Subclass feature blocks are only rendered when the level-up flow calls applySubclassFeatures, which is module-scoped (not on window). Directly setting #char-level + #char-subclass + #class-selector via dispatchEvent does not trigger a synthetic level-up. Source data in SUBCLASS_FEATURE_DATA is verified correct via grep. Recommend exposing applySubclassFeatures (single-line fix) so future iterations can validate rendered output.",
+    "F5_prep_guide_blur_no_resync": "updateSpellGuide() works perfectly when called with explicit (className, level) args. Trigger path #char-level → input/blur → clampLevel → updateSpellGuide didn't fire because class-selector.dispatchEvent('change') doesn't appear to mark the class as active for clampLevel's class-lookup. Live user typing should work; verify manually.",
+    "F2_autosave_info_standalone": "Banner uses window.parent.postMessage which in iframe context delivers to React shell. In standalone, parent === window but the message still wasn't received back — possible silent throw in the handler, or it only fires if a charId differs from current. Needs verification inside the actual iframe."
+  }
+}

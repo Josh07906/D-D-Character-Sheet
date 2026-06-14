@@ -301,7 +301,10 @@
     </script>
   
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
 <title>D&amp;D 2024 Character Sheet</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&amp;family=Rajdhani:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
 <style>
@@ -345,9 +348,60 @@
     --lore-text:      initial;
     --lore-heading:   initial;
     --lore-accent:    initial;
+    /* Spell-detail badge pills + spell-list mini-tags get their own
+       background/border so the user can break the link between them
+       and the text-on-card colour (which was previously bleeding in
+       through --ink-soft / --gold-dark). */
+    --spell-badge-bg:     initial;
+    --spell-badge-border: initial;
+    /* Spell Preparation Guide widget — independent palette. */
+    --prep-bg:        initial;
+    --prep-text:      initial;
+    --prep-heading:   initial;
+    --prep-accent:    initial;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Performance & touch optimizations ─────────────────────
+     1. content-visibility on inactive tab panels skips layout
+        + paint for off-screen content (huge on low-end laptops).
+     2. CSS containment on the heavy lists scopes layout work.
+     3. Touch action defaults to manipulation so iPads / tablets
+        don't get the 300ms double-tap zoom delay on every chip.
+     4. -webkit-tap-highlight-color removed for native feel.
+  ----------------------------------------------------------- */
+  .tab-panel:not(.active) {
+    content-visibility: auto;
+    contain-intrinsic-size: 800px;
+  }
+  .spell-level-cards, #lore-container, #features-container,
+  #actions-container, #bonus-actions-container, #reactions-container,
+  #other-actions-container, .inv-grid {
+    contain: layout style;
+  }
+  button, .tab, .lore-filter-btn, .spell-info-btn, .action-icon-btn,
+  .coin-pill, .editor-btn, .add-btn, [contenteditable="true"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Slightly larger tap targets on touch devices so iPad users
+     can hit edit / delete / equip icons without aiming. */
+  @media (pointer: coarse) {
+    .action-icon-btn { min-width: 30px; min-height: 30px; font-size: 14px; }
+    .editor-btn      { padding: 6px 12px; font-size: 13px; }
+    .tab             { padding: 10px 14px; font-size: 14px; }
+    .coin-pill       { min-height: 36px; }
+    .lore-filter-btn { min-height: 34px; }
+    /* Always reveal hover-gated controls — there's no hover on touch. */
+    .feature-block .action-icon-btn,
+    .feature-block .feature-collapse-btn,
+    .lore-entry .action-icon-btn,
+    .inv-card .action-icon-btn,
+    .spell-table tr .delete-btn,
+    .notes-content .notes-session-del,
+    .tracker-item .action-icon-btn { display: flex !important; opacity: 1 !important; }
+  }
 
   body {
     /* Body background is driven by the active theme. --rail-dark holds
@@ -382,6 +436,26 @@
   }
   .page::before { top: 12px; left: 12px; border-width: 4px 0 0 4px; }
   .page::after  { bottom: 12px; right: 12px; border-width: 0 4px 4px 0; }
+
+  /* ── Tablet / iPad portrait: collapse 2-col layouts to 1-col,
+        keep page padding lean, give the sheet some breathing room. */
+  @media (max-width: 1024px) {
+    body { padding: 0.5rem; }
+    .page { max-width: 100%; }
+    .header { grid-template-columns: 220px 1fr; min-height: auto; }
+    .header-right { padding: 1rem; }
+    .header-top-row { grid-template-columns: 1fr; gap: 0.75rem; }
+    #features-container { grid-template-columns: 1fr !important; }
+    .action-board, .action-columns { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 768px) {
+    body { padding: 0.25rem; }
+    .header { grid-template-columns: 1fr; }
+    .header-left { border-right: none; border-bottom: 2px solid var(--gold-dark); }
+    .portrait { min-height: 180px; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { white-space: nowrap; flex-shrink: 0; }
+  }
 
   /* ── HEADER ─────────────────────────────────────────────── */
   .header {
@@ -780,7 +854,9 @@
   .spell-mini-tag {
     display: inline-flex; align-items: center;
     /* Theme-synced: bg derived from --ink (page bg), border from --gold-dark (accent). */
-    background: var(--ink-soft); border: 1px solid var(--gold-dark); border-radius: 10px;
+    background: var(--spell-badge-bg, var(--ink-soft));
+    border: 1px solid var(--spell-badge-border, var(--gold-dark));
+    border-radius: 10px;
     padding: 2px 7px; white-space: nowrap;
     font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 700;
     letter-spacing: .04em; line-height: 1.4;
@@ -927,8 +1003,26 @@
   .feature-block { margin-bottom: 1.25rem; border-left: 3px solid var(--gold-light); padding-left: 1rem; position: relative; background: linear-gradient(90deg, rgba(184,150,90,0.05) 0%, transparent 100%); padding-top: 4px; padding-bottom: 4px;}
   .feature-block:hover { border-left-color: var(--rail-accent); }
   .feature-name { font-weight: bold; font-size: 15px; color: var(--ink); margin-bottom: 4px; outline: none; letter-spacing: 0.05em;}
-  .feature-cat { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 4px; outline: none; } 
+  .feature-cat { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 4px; outline: none; }
   .feature-desc { font-family: 'Cormorant Garamond', serif; font-size: 15px; color: var(--ink-soft); line-height: 1.6; outline: none; text-align: justify;}
+  /* Collapse toggle pinned next to the feature name. ▾ when expanded,
+     ▸ when collapsed. The collapsed class hides the description and
+     any feature-grant tables so the user can fold long class lists. */
+  .feature-collapse-btn {
+    position: absolute; top: 6px; right: 56px;
+    background: transparent; border: 1px solid transparent; color: var(--gold-dark);
+    font-family: 'Rajdhani', sans-serif; font-size: 12px; line-height: 1;
+    padding: 2px 8px; border-radius: 2px; cursor: pointer;
+    transition: .15s; opacity: .85;
+  }
+  .feature-block:hover .feature-collapse-btn { opacity: 1; }
+  .feature-collapse-btn:hover { color: var(--gold-light); border-color: var(--gold-dark); }
+  .feature-block.feature-collapsed .feature-desc,
+  .feature-block.feature-collapsed .feature-data,
+  .feature-block.feature-collapsed .spell-grant-table,
+  .feature-block.feature-collapsed .feature-extra { display: none !important; }
+  .feature-block.feature-collapsed { padding-bottom: 2px; }
+  .feature-block.feature-collapsed .feature-name { margin-bottom: 0; }
 
   /* ── ATTACKS ─────────────────────────────────────────────── */
   .attack-row { display: grid; grid-template-columns: 1fr 60px 80px 80px 10px; gap: 8px; padding: 8px; font-size: 14px; border-bottom: 1px solid var(--parchment3); align-items: center; position: relative; }
@@ -3399,8 +3493,8 @@
       </div>
 
       <!-- Level guidelines banner (populated by level-up system) -->
-      <div id="spell-level-guide" style="background: linear-gradient(135deg, rgba(45, 90, 120, 0.12), rgba(184, 150, 90, 0.08)); border: 1px solid var(--blue-mid); border-radius: 2px; padding: 10px 14px; margin-bottom: 1rem; font-family: Rajdhani, sans-serif; font-size: 12px; color: var(--ink-soft);">
-        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--blue-mid);font-weight:bold;margin-bottom:6px;">✦ Spell Preparation Guide — Level <span id="spell-guide-level">2</span></div>
+      <div id="spell-level-guide" class="spell-prep-guide" style="background: var(--prep-bg, linear-gradient(135deg, rgba(45, 90, 120, 0.12), rgba(184, 150, 90, 0.08))); border: 1px solid var(--prep-accent, var(--blue-mid)); border-radius: 2px; padding: 10px 14px; margin-bottom: 1rem; font-family: Rajdhani, sans-serif; font-size: 12px; color: var(--prep-text, var(--ink-soft));">
+        <div style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--prep-heading, var(--blue-mid));font-weight:bold;margin-bottom:6px;">✦ Spell Preparation Guide — Level <span id="spell-guide-level">2</span></div>
         <div id="spell-guide-text" style="line-height:1.7;">📚 <b>Spells Known:</b> 5 (swap 1 on level-up)<br>✦ <b>Cantrips Known:</b> 2<br>🎯 <b>Spell Slots:</b> 1st: 3 (all restore on Long Rest)</div>
       </div>
 
@@ -3587,6 +3681,7 @@
           <button class="editor-btn" onclick="document.execCommand('italic')"><i>I</i></button>
           <button class="editor-btn" onclick="document.execCommand('underline')"><u>U</u></button>
           <button class="editor-btn" onclick="document.execCommand('insertUnorderedList')">• List</button>
+          <button class="editor-btn" onclick="insertLinkInActiveEditor()" title="Insert link (Ctrl+K)">🔗</button>
           <button class="editor-btn" onclick="addLoreImage()" title="Insert image into lore">🖼</button>
           <button class="editor-btn clear-fmt" onclick="clearFormatting()" title="Strip formatting from selection or focused lore entry">⊘</button>
           <button class="editor-btn" onclick="collapseAllLore(true)" title="Collapse all entries" data-testid="lore-collapse-all">▾▾</button>
@@ -3611,7 +3706,16 @@
             <span class="lore-type-chip" data-type="other" onclick="cycleLoreType(this)" title="Click to change type">Other</span>
             <div class="lore-heading" contenteditable="true">Character Background</div>
             <button class="lore-collapse-btn" onclick="toggleLoreEntry(this)" title="Collapse / expand">▾</button>
-            <button class="action-icon-btn delete-btn" onclick="this.closest('.lore-entry').remove(); autoSave(); updateLoreCount();">✖</button>
+            <button class="action-icon-btn delete-btn" onclick="(function(btn){
+              var entry = btn.closest('.lore-entry');
+              if (!entry) return;
+              var headEl = entry.querySelector('.lore-heading');
+              var label  = (headEl && headEl.innerText.trim()) || 'this lore entry';
+              if (!confirm('Delete &quot;' + label + '&quot;? This cannot be undone.')) return;
+              entry.remove();
+              autoSave();
+              updateLoreCount();
+            })(this)">✖</button>
           </div>
           <div class="lore-body">
             <p contenteditable="true">Write your character's history and lore here...</p>
@@ -4069,7 +4173,17 @@
   // On page load, a startup screen offers New Character or Load Character.
   // Auto-save stores to sessionStorage as a backup during the session.
 
-  const SESSION_KEY = 'aurora:session';
+  // Auto-save persists to localStorage so it survives tab close / reload
+  // (sessionStorage was the previous behaviour — that's why the autosave
+  // toast appeared but the data was gone after a refresh). The key is
+  // namespaced per-character via the optional charId pushed in by the
+  // React shell on the initial load message; characters opened
+  // standalone fall back to a shared 'standalone' slot.
+  const SESSION_KEY = 'aurora:autosave';
+  function _autoSaveKey() {
+    const id = window.__auroraCharId || 'standalone';
+    return SESSION_KEY + ':' + id;
+  }
 
   let _autoSaveTimer = null;
   function autoSave() {
@@ -4368,6 +4482,13 @@
     if (typeof filterLoreEntries          === 'function') filterLoreEntries();
     if (typeof updateNotesWordCount       === 'function') updateNotesWordCount();
     if (typeof _ensureSessionDeleteButtons === 'function') _ensureSessionDeleteButtons();
+    if (typeof ensureFeatureCollapseButtons === 'function') ensureFeatureCollapseButtons();
+    // Resync the Spell Preparation Guide to the freshly-loaded class/level.
+    try {
+      const cls = (document.getElementById('class-selector') || {}).value || window._currentClass || '';
+      const lvl = parseInt((document.getElementById('char-level') || {}).innerText) || 1;
+      if (cls && typeof updateSpellGuide === 'function') updateSpellGuide(cls, lvl);
+    } catch(_e) {}
     // Restore manual-action JSON store, then re-render the cards so the
     // ability-driven `atk` recomputes from the freshly-restored ability
     // bases (rather than relying on stale HTML from the previous save).
@@ -4512,14 +4633,38 @@
     }
   }
 
-  // ── SESSION SAVE (auto-save to sessionStorage during active use) ──
+  // ── SESSION SAVE (auto-save to localStorage during active use) ──
+  // Tagged with a timestamp so the restore picker can show "Last
+  // autosaved 4 minutes ago" alongside the Quick Save's updated_at.
   function _doSessionSave() {
     try {
       const d = _collectAllData();
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(d));
+      d._autosavedAt = new Date().toISOString();
+      const raw = JSON.stringify(d);
+      try {
+        localStorage.setItem(_autoSaveKey(), raw);
+      } catch (storageErr) {
+        // Quota exceeded: drop the oldest standalone slots first.
+        try {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith(SESSION_KEY + ':') && k !== _autoSaveKey())
+            .forEach(k => localStorage.removeItem(k));
+          localStorage.setItem(_autoSaveKey(), raw);
+        } catch (e2) { console.warn('Autosave quota:', e2); }
+      }
       _showSavePulse();
+      // Bubble up to the React shell so it can show "autosaved ✓".
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({
+            type: 'aurora:autosaved',
+            charId: window.__auroraCharId || null,
+            at: d._autosavedAt,
+          }, '*');
+        }
+      } catch(_e) {}
     } catch(e) {
-      console.warn('Aurora session save failed:', e);
+      console.warn('Aurora autosave failed:', e);
     }
   }
 
@@ -4630,7 +4775,7 @@
           const d = JSON.parse(evt.target.result);
           if (!d._aurora_version) throw new Error('Not an Aurora save file');
           _restoreAllData(d);
-          sessionStorage.setItem(SESSION_KEY, JSON.stringify(d));
+          try { localStorage.setItem(_autoSaveKey(), JSON.stringify(d)); } catch(_e){}
           if (typeof categorizeFeatures === 'function') categorizeFeatures();
           if (typeof recalcAll === 'function') recalcAll();
           if (typeof syncActionBoard === 'function') syncActionBoard();
@@ -4656,7 +4801,7 @@
   // ── RESET / NEW CHARACTER ────────────────────────────────────────
   window.resetCharacterSheet = function() {
     if (!confirm('Reset the entire character sheet? All unsaved data will be lost.\n\nTip: Use ⬇ Download JSON first to keep a backup.')) return;
-    sessionStorage.removeItem(SESSION_KEY);
+    try { localStorage.removeItem(_autoSaveKey()); } catch(_e){}
     location.reload();
   };
 
@@ -4676,7 +4821,7 @@
 
   // ── STARTUP SCREEN ───────────────────────────────────────────────
   function _showStartupScreen(continueOnly) {
-    const hasSession = !!sessionStorage.getItem(SESSION_KEY);
+    const hasSession = !!localStorage.getItem(_autoSaveKey());
 
     const overlay = document.createElement('div');
     overlay.id = 'aurora-startup';
@@ -4721,7 +4866,7 @@
             window.parent.postMessage({ type: 'aurora:ready' }, '*');
           }
           // Also try resuming any local session as a final fallback.
-          const raw = sessionStorage.getItem(SESSION_KEY);
+          const raw = localStorage.getItem(_autoSaveKey());
           if (raw) {
             const d = JSON.parse(raw);
             _restoreAllData(d);
@@ -4788,7 +4933,7 @@
     if (resumeBtn) {
       resumeBtn.onclick = () => {
         try {
-          const raw = sessionStorage.getItem(SESSION_KEY);
+          const raw = localStorage.getItem(_autoSaveKey());
           if (raw) {
             const d = JSON.parse(raw);
             _restoreAllData(d);
@@ -4804,8 +4949,8 @@
   }
 
   window._clearAuroraSave = function() {
-    sessionStorage.removeItem(SESSION_KEY);
-    alert('Session data cleared. Reload to see startup screen.');
+    try { localStorage.removeItem(_autoSaveKey()); } catch(_e){}
+    alert('Autosave cleared. Reload to see startup screen.');
   };
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -5742,10 +5887,43 @@
   }
 
   // ── FEATURE EDITOR SYSTEM ──
+
+  // Attach a ▾/▸ collapse toggle to every feature-block in the DOM.
+  // Idempotent — re-runs are no-ops on blocks that already have one.
+  // Hides .feature-desc / .feature-data / spell grant tables when the
+  // block is collapsed (the user only sees category + name then).
+  function ensureFeatureCollapseButtons() {
+    document.querySelectorAll('.feature-block').forEach(block => {
+      if (block.querySelector(':scope > .feature-collapse-btn')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'feature-collapse-btn';
+      btn.title = 'Collapse / expand details';
+      btn.setAttribute('contenteditable', 'false');
+      btn.textContent = block.classList.contains('feature-collapsed') ? '▸' : '▾';
+      btn.setAttribute('onclick', 'toggleFeatureCollapse(this)');
+      block.appendChild(btn);
+    });
+  }
+  function toggleFeatureCollapse(btn) {
+    const block = btn && btn.closest && btn.closest('.feature-block');
+    if (!block) return;
+    block.classList.toggle('feature-collapsed');
+    btn.textContent = block.classList.contains('feature-collapsed') ? '▸' : '▾';
+    if (typeof autoSave === 'function') autoSave();
+  }
+  window.toggleFeatureCollapse        = toggleFeatureCollapse;
+  window.ensureFeatureCollapseButtons = ensureFeatureCollapseButtons;
+
   function categorizeFeatures() {
       const container = document.getElementById('features-container');
       const blocks = Array.from(container.querySelectorAll('.feature-block'));
       container.querySelectorAll('.feat-cat-header').forEach(h => h.remove());
+
+      // Re-attach a collapse toggle to every block (covers class- /
+      // species- / subclass- / background- / feat- / custom-spawned
+      // ones in a single pass).
+      try { ensureFeatureCollapseButtons(); } catch(_e){}
       
       // Category display order
       const CAT_ORDER = ['Species Trait', 'Class Feature', 'Subclass Feature', 'Feat', 'Background Feature', 'Other'];
@@ -7002,6 +7180,7 @@
       <div class="feature-data" style="display:none;">{"track":false,"modifiers":[]}</div>
     </div>`;
     document.getElementById('features-container').insertAdjacentHTML('beforeend', html);
+    try { ensureFeatureCollapseButtons(); } catch(_e){}
     openFeatureModal(newId);
   }
 
@@ -7027,7 +7206,7 @@
           '<span class="lore-type-chip" data-type="' + t + '" onclick="cycleLoreType(this)" title="Click to change type">' + LORE_TYPE_LABELS[t] + '</span>' +
           '<div class="lore-heading" contenteditable="true">' + title + '</div>' +
           '<button class="lore-collapse-btn" onclick="toggleLoreEntry(this)" title="Collapse / expand">▾</button>' +
-          '<button class="action-icon-btn delete-btn" onclick="this.closest(\'.lore-entry\').remove(); autoSave(); updateLoreCount();">✖</button>' +
+          '<button class="action-icon-btn delete-btn" onclick="confirmDeleteLore(this)">✖</button>' +
         '</div>' +
         '<div class="lore-body">' + body + '</div>' +
       '</div>'
@@ -7183,12 +7362,12 @@
       collapseBtn.textContent = '▾';
       header.appendChild(collapseBtn);
       if (delBtn) {
-        delBtn.setAttribute('onclick', "this.closest('.lore-entry').remove(); autoSave(); updateLoreCount();");
+        delBtn.setAttribute('onclick', "confirmDeleteLore(this)");
         header.appendChild(delBtn);
       } else {
         const d = document.createElement('button');
         d.className = 'action-icon-btn delete-btn';
-        d.setAttribute('onclick', "this.closest('.lore-entry').remove(); autoSave(); updateLoreCount();");
+        d.setAttribute('onclick', "confirmDeleteLore(this)");
         d.textContent = '✖';
         header.appendChild(d);
       }
@@ -7237,12 +7416,66 @@
     document.execCommand('insertHTML', false, '<mark>' + txt.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])) + '</mark>');
     autoSave();
   }
-  function insertNotesLink() {
-    const url = prompt('Link URL:');
+  function insertNotesLink() { return insertLinkInActiveEditor(); }
+  // Generic — insert a hyperlink at the current selection inside ANY
+  // focused contenteditable on the sheet. Bound to Ctrl/Cmd+K too.
+  function insertLinkInActiveEditor() {
+    // Find the contenteditable that currently owns the selection. If
+    // the user hasn't focused one yet, fall back to the notes editor
+    // so the Notes toolbar still works after a Cancel→Open flow.
+    let host = document.activeElement;
+    if (!host || host.getAttribute('contenteditable') !== 'true') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const node = sel.getRangeAt(0).startContainer;
+        host = node && node.nodeType === 1
+          ? node.closest('[contenteditable="true"]')
+          : (node && node.parentElement && node.parentElement.closest('[contenteditable="true"]'));
+      }
+    }
+    if (!host) host = document.getElementById('notes-editor');
+    if (!host) { alert('Click inside a text area first, then add the link.'); return; }
+    host.focus();
+    let url = prompt('Link URL (e.g. https://5e.tools/spells.html#fireball):');
     if (!url) return;
+    if (!/^[a-z]+:/i.test(url)) url = 'https://' + url.replace(/^\/+/, '');
     document.execCommand('createLink', false, url);
-    autoSave();
+    // Force target=_blank on the just-inserted anchors inside this host
+    // so the user can click straight through (we also have a global
+    // click handler below for older anchors).
+    host.querySelectorAll('a[href]').forEach(a => {
+      if (!a.target) a.target = '_blank';
+      if (!a.rel)    a.rel    = 'noopener noreferrer';
+    });
+    if (typeof autoSave === 'function') autoSave();
   }
+  window.insertLinkInActiveEditor = insertLinkInActiveEditor;
+
+  // Ctrl/Cmd+K anywhere on the sheet → insert link in the active editor.
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      const ae = document.activeElement;
+      if (ae && ae.getAttribute && ae.getAttribute('contenteditable') === 'true') {
+        e.preventDefault();
+        insertLinkInActiveEditor();
+      }
+    }
+  });
+
+  // Plain-click on an anchor inside *any* contenteditable opens the URL
+  // in a new tab — contenteditable normally swallows the navigation.
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    const inEditor = a.closest('[contenteditable="true"]');
+    if (!inEditor) return;
+    // Let modifier keys keep their native meaning (selection / drag).
+    if (e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const url = a.getAttribute('href');
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  });
   function updateNotesWordCount() {
     const editor = document.getElementById('notes-editor');
     const el = document.getElementById('notes-wordcount');
@@ -7269,6 +7502,21 @@
     updateNotesWordCount();
     autoSave();
   }
+
+  // Confirm-then-delete for Lore entries. Called inline from the delete
+  // (✖) button on every lore card; mirrors the Notes-session pattern so
+  // a stray click never destroys campaign world-building.
+  function confirmDeleteLore(btn) {
+    const entry = btn && btn.closest && btn.closest('.lore-entry');
+    if (!entry) return;
+    const headEl = entry.querySelector('.lore-heading');
+    const label = (headEl && headEl.innerText.trim()) || 'this lore entry';
+    if (!confirm('Delete "' + label + '"? This cannot be undone.')) return;
+    entry.remove();
+    if (typeof autoSave         === 'function') autoSave();
+    if (typeof updateLoreCount  === 'function') updateLoreCount();
+  }
+  window.confirmDeleteLore = confirmDeleteLore;
 
   // Back-fill the ✕ delete button on session H3s restored from older
   // saves so the user always has a one-click delete with confirmation.
@@ -9702,6 +9950,12 @@ const BROWSE_PANEL_DEFS = [
   { group:'Lore Widget',            key:'lore-text',          label:'Body Text' },
   { group:'Lore Widget',            key:'lore-heading',       label:'Entry Heading' },
   { group:'Lore Widget',            key:'lore-accent',        label:'Accent (borders, drag handle)' },
+  { group:'Spell Badge Pills',      key:'spell-badge-bg',     label:'Badge Background' },
+  { group:'Spell Badge Pills',      key:'spell-badge-border', label:'Badge Border' },
+  { group:'Spell Preparation Guide',key:'prep-bg',            label:'Background' },
+  { group:'Spell Preparation Guide',key:'prep-text',          label:'Body Text' },
+  { group:'Spell Preparation Guide',key:'prep-heading',       label:'Heading' },
+  { group:'Spell Preparation Guide',key:'prep-accent',        label:'Accent (borders, bullets)' },
 ];
 let _browseOverrides = {};
 
@@ -10724,7 +10978,7 @@ function showSpellDetailByName(spellName) {
   // Helper: build one stat badge + label
   function _sdBadge(val, lbl, color) {
     return `<div style="text-align:center;min-width:60px;">
-      <div style="background:var(--ink-soft);border:1px solid var(--gold-dark);border-radius:16px;padding:5px 13px;display:inline-block;white-space:nowrap;">
+      <div style="background:var(--spell-badge-bg, var(--ink-soft));border:1px solid var(--spell-badge-border, var(--gold-dark));border-radius:16px;padding:5px 13px;display:inline-block;white-space:nowrap;">
         <span style="color:${color};font-weight:700;font-size:12px;letter-spacing:.04em;font-family:'Rajdhani',sans-serif;">${val}</span>
       </div>
       <div style="font-size:9px;color:var(--ink-muted);letter-spacing:.1em;text-transform:uppercase;margin-top:5px;font-family:'Rajdhani',sans-serif;">${lbl}</div>
@@ -11350,7 +11604,7 @@ const CLASS_TEMPLATES = {
     features: [
       { id:'feat-magical-tinkering', name:'Magical Tinkering', cat:'Class Feature', desc:"As a Bonus Action, you can touch a Tiny nonmagical object and imbue it with a minor magical property: emit light (5 ft radius), emit a recorded message (6 seconds), emit an odor, or show a static visual." },
       { id:'feat-spellcasting-artificer', name:'Spellcasting (INT)', cat:'Class Feature', desc:"You cast artificer spells using Intelligence. You have a spellbook (formula book). You can use artisan's tools as a spellcasting focus." },
-      { id:'feat-infuse-item', name:'Infuse Item', cat:'Class Feature', desc:"You can imbue mundane items with magical infusions. You know 4 infusions and can have 2 infused items at a time. Infusions last until you die or create a new infusion exceeding your limit.", tracked: true, uses: 2 },
+      { id:'feat-infuse-item', name:'Infuse Item', cat:'Class Feature', desc:"You can imbue mundane items with magical infusions. You know 4 infusions and can have 2 infused items at a time. Infusions last until you die or create a new infusion exceeding your limit.<br><br><strong>Known infusions (pick 4 to start; learn more at 6/10/14):</strong><ul style='margin:6px 0 4px 18px;padding:0;'><li><strong>Enhanced Defense</strong> — armor / shield gains +1 (+2 at lv10).</li><li><strong>Enhanced Weapon</strong> — weapon gains +1 to attack &amp; damage (+2 at lv10).</li><li><strong>Enhanced Focus</strong> — wand / staff / rod grants +1 to spell attack rolls and spell save DC (+2 at lv10).</li><li><strong>Bag of Holding</strong> — pouch holds 64 cu ft / 500 lb in an extradimensional space.</li><li><strong>Boots of the Winding Path</strong> — Bonus Action to teleport up to 15 ft back to a recently-occupied space.</li><li><strong>Goggles of Night</strong> — Darkvision 60 ft.</li><li><strong>Mind Sharpener</strong> — armor/clothing: spend a charge to auto-succeed on a Concentration save.</li><li><strong>Radiant Weapon</strong> — sheds light; Bonus Action: blind a hitter (CON save) for 1 minute.</li><li><strong>Repeating Shot</strong> — ranged weapon needs no ammo, +1 to attack &amp; damage.</li><li><strong>Replicate Magic Item</strong> — copy a permitted Common (any level) / Uncommon (lv6) / Rare (lv14) item (see Replicate list).</li><li><strong>Resistant Armor</strong> — armor grants Resistance to one chosen damage type.</li><li><strong>Returning Weapon</strong> — thrown weapon flies back to your hand after each throw, +1 to attack &amp; damage.</li><li><strong>Spell-Storing Item</strong> — 1st/2nd-lv Artificer spell stored in a wand or weapon, cast it using your spell DC, recharges daily.</li><li><strong>Helm of Awareness</strong> (lv10) — Advantage on Initiative.</li><li><strong>Homunculus Servant</strong> (lv6) — Tiny construct ally with shared action economy.</li></ul><strong>Replicate Magic Item (lv2):</strong> Alchemy Jug, Bag of Holding, Cap of Water Breathing, Goggles of Night, Sending Stones, Wand of Magic Detection, Wand of Secrets, Rope of Climbing, Driftglobe. <strong>(lv6):</strong> Boots of Elvenkind, Cloak of Elvenkind, Cloak of the Manta Ray, Eyes of Charming, Gloves of Thievery, Goggles of Night, Pipes of Haunting, Quiver of Ehlonna, Slippers of Spider Climbing, Winged Boots, Bag of Beans. <strong>(lv14):</strong> Boots of Speed, Boots of Striding and Springing, Bracers of Archery, Brooch of Shielding, Cloak of Protection, Eyes of the Eagle, Gauntlets of Ogre Power, Gloves of Missile Snaring, Gloves of Swimming &amp; Climbing, Hat of Disguise, Headband of Intellect, Helm of Telepathy, Medallion of Thoughts, Periapt of Wound Closure, Pearl of Power, Ring of Mind Shielding, Ring of Water Walking, Stone of Good Luck, Wand of Magic Missiles, Winged Boots.", tracked: true, uses: 2 },
       { id:'feat-right-tool', name:'The Right Tool for the Job', cat:'Class Feature', desc:"At the end of a Short or Long Rest, you can touch a nonmagical object and turn it into artisan's tools of your choice, which last until you use this feature again." },
     ]
   },
@@ -12788,12 +13042,19 @@ const SUBCLASS_FEATURE_DATA = {
   },
   'Circle of the Moon': {
     3: [
-      { name:'Circle Forms', cat:'Subclass Feature', desc:'You can use Wild Shape to transform into creatures with a Challenge Rating up to 1 (instead of the normal ¼ limit). Starting at level 6, the CR limit increases to your Druid level divided by 3 (round down).' },
+      { name:'Circle Forms', cat:'Subclass Feature', desc:'You can use Wild Shape to transform into creatures with a Challenge Rating up to 1 (instead of the normal ¼ limit). Your wild-shape forms gain extra Hit Points equal to 3 × your Druid level — these come on top of whatever HP the shape would normally have, giving Moon Druid its signature "increased toughness" while transformed.' },
       { name:'Combat Wild Shape', cat:'Subclass Feature', desc:'You can use Wild Shape as a Bonus Action. While in a wild shape form, you can expend spell slots (Bonus Action) to regain HP: 1d8 per level of the slot expended.' },
+      { name:'Lunar Radiance', cat:'Subclass Feature', desc:'<strong>Magic action.</strong> While in your normal form OR a Wild Shape form, you unleash a blast of moonlight in a 30-foot Cone. Each creature in the Cone makes a CON saving throw against your spell save DC. On a failed save, a creature takes <strong>2d10 Radiant damage</strong> and is <em>Blinded</em> until the end of your next turn; on a success, half damage and no Blinded. You can use this <strong>Wisdom modifier</strong> times per Long Rest (minimum once). At Druid level 10, the damage rises to <strong>3d10</strong>; at level 14, to <strong>4d10</strong>.', tracked:true, uses:3 },
     ],
-    6: [{ name:'Improved Circle Forms', cat:'Subclass Feature', desc:'Your Wild Shape CR limit is now Druid level ÷ 3 (round down, min 1). You can transform into an Elemental (Air, Earth, Fire, or Water) using two Wild Shape uses.' }],
-    10: [{ name:'Elemental Wild Shape', cat:'Subclass Feature', desc:'When you use Wild Shape, you can expend two uses of Wild Shape to transform into an Air Elemental, Earth Elemental, Fire Elemental, or Water Elemental.' }],
-    14: [{ name:'Thousand Forms', cat:'Subclass Feature', desc:'You have always have the Alter Self spell prepared. You can cast it without expending a spell slot.' }],
+    6: [
+      { name:'Improved Circle Forms', cat:'Subclass Feature', desc:'Your Wild Shape CR limit rises to your Druid level ÷ 3 (round down, min 1). The bonus Hit Points granted by Circle Forms increase from 3× to <strong>4× your Druid level</strong>, and your wild-shape forms gain <strong>Resistance to Necrotic and Radiant damage</strong>.' },
+    ],
+    10: [
+      { name:'Improved Lunar Radiance', cat:'Subclass Feature', desc:'Lunar Radiance now deals <strong>3d10 Radiant damage</strong>, and you gain Advantage on saves against being <em>Charmed</em> or <em>Frightened</em>. While in a Wild Shape form, you have Immunity to the Charmed and Frightened conditions.' },
+    ],
+    14: [
+      { name:'Lunar Form', cat:'Subclass Feature', desc:'You become a beacon of moonlight. <strong>Lunar Radiance</strong> now deals <strong>4d10 Radiant damage</strong> and you regain all expended uses on a Short Rest in addition to a Long Rest. When you Wild Shape, you shed Bright Light in a 10-ft radius and Dim Light for another 10 ft. Whenever a creature within that Bright Light hits you with an attack, it takes <strong>2d10 Radiant damage</strong> (you choose to trigger this, no Reaction needed).' },
+    ],
   },
   'Circle of the Sea': {
     3: [
@@ -12973,27 +13234,82 @@ const SUBCLASS_FEATURE_DATA = {
   'Hunter': [
     { name:'Hunter\'s Prey', cat:'Subclass Feature', desc:'Choose one: Colossus Slayer (1d8 extra damage per turn to a creature below max HP), Giant Killer (Reaction to attack a Large+ creature that attacks you), or Horde Breaker (extra attack against a different creature within 5 ft of your original target).' },
   ],
-  // ── ROGUE ──
-  'Arcane Trickster': [
-    { name:'Spellcasting (INT)', cat:'Subclass Feature', desc:'You augment your roguish abilities with spells from the Enchantment and Illusion schools (two from any school). INT is your spellcasting ability.' },
-    { name:'Mage Hand Legerdemain', cat:'Subclass Feature', desc:'When you cast Mage Hand, the hand can be invisible and can stow/retrieve objects in containers on other creatures or pick locks/disarm traps at range without being noticed.' },
-  ],
-  'Assassin': [
-    { name:'Assassinate', cat:'Subclass Feature', desc:'You have Advantage on attack rolls against any creature that hasn\'t taken a turn in the combat yet. Any hit against a surprised creature is a critical hit.' },
-    { name:'Bonus Proficiencies (Assassin)', cat:'Subclass Feature', desc:'You gain proficiency with the disguise kit and the poisoner\'s kit.' },
-  ],
-  'Soulknife': [
-    { name:'Psionic Power (Rogue)', cat:'Subclass Feature', desc:'You harbor a wellspring of psionic energy — Psionic Energy Dice (d6s) equal to twice your PB. Replenish one die per Short Rest, all on Long Rest. Psi-Bolstered Knack: add one die to a failed proficient skill check. Psychic Whispers: telepathically communicate with up to PB willing creatures for 1 hour.' },
-    { name:'Psychic Blades (Soulknife)', cat:'Subclass Feature', desc:'As part of the Attack action, manifest a Psychic Blade from your free hand — 1d6 Psychic, finesse, thrown 60 ft. You can manifest a second blade for an off-hand Bonus Action attack.' },
-  ],
-  'Thief': [
-    { name:'Fast Hands', cat:'Subclass Feature', desc:'You can use the Bonus Action granted by Cunning Action to make a Sleight of Hand check, use Thieves\' Tools, or take the Use an Object action.' },
-    { name:'Second-Story Work', cat:'Subclass Feature', desc:'Climbing no longer costs you extra movement. The distance you cover on a running jump increases by a number of feet equal to your DEX modifier.' },
-  ],
-  'Swashbuckler': [
-    { name:'Fancy Footwork', cat:'Subclass Feature', desc:'When you make a melee attack against a creature on your turn, that creature can\'t make opportunity attacks against you for the rest of your turn.' },
-    { name:'Rakish Audacity', cat:'Subclass Feature', desc:'Add your CHA modifier to Initiative rolls. You can use Sneak Attack without Advantage if you\'re within 5 ft of the target, no other creatures are within 5 ft of you, and you don\'t have Disadvantage.' },
-  ],
+  // ── ROGUE (PHB'24 — full 3 / 9 / 13 / 17 progression) ──
+  'Arcane Trickster': {
+    3: [
+      { name:'Spellcasting (INT)', cat:'Subclass Feature', desc:'You augment your roguish abilities with spells from the Enchantment and Illusion schools (two from any school). INT is your spellcasting ability.' },
+      { name:'Mage Hand Legerdemain', cat:'Subclass Feature', desc:'When you cast Mage Hand, the hand can be invisible and can stow/retrieve objects in containers on other creatures or pick locks/disarm traps at range without being noticed.' },
+    ],
+    9: [
+      { name:'Magical Ambush', cat:'Subclass Feature', desc:'If you are Hidden from a creature when you cast a spell on it, the creature has Disadvantage on any saving throw it makes against the spell this turn.' },
+    ],
+    13: [
+      { name:'Versatile Trickster', cat:'Subclass Feature', desc:'As a Bonus Action, designate one creature within 5 ft of your Mage Hand. Doing so gives you Advantage on attack rolls against that creature until the end of the current turn.' },
+    ],
+    17: [
+      { name:'Spell Thief', cat:'Subclass Feature', desc:'Reaction: When a creature you can see casts a spell, force a save (DC = your spell save DC). On a fail, you negate that spell\'s effect on you AND steal the spell. For the next 8 hours you can cast it once using your slots and INT; the original caster can\'t cast that spell until the 8 hours pass. Once per Long Rest.', tracked:true, uses:1 },
+    ],
+  },
+  'Assassin': {
+    3: [
+      { name:'Assassinate', cat:'Subclass Feature', desc:'You have Advantage on attack rolls against any creature that hasn\'t taken a turn in the combat yet. Any hit against a surprised creature is a critical hit.' },
+      { name:'Bonus Proficiencies (Assassin)', cat:'Subclass Feature', desc:'You gain proficiency with the disguise kit and the poisoner\'s kit.' },
+    ],
+    9: [
+      { name:'Infiltration Expertise', cat:'Subclass Feature', desc:'You can spend 7 days and 25 GP to create a believable false identity, complete with documentation, history, and contacts. Adopting/maintaining the identity requires no further work.' },
+    ],
+    13: [
+      { name:'Envenom Weapons', cat:'Subclass Feature', desc:'You can apply poisons to your weapons as a Bonus Action (rather than the usual Action). When you hit a creature with a poisoned weapon, it has Disadvantage on its saving throw against the poison.' },
+    ],
+    17: [
+      { name:'Death Strike', cat:'Subclass Feature', desc:'When you hit with an attack on your first turn in combat, the target makes a CON save (DC = 8 + DEX + Prof). On a fail, your attack\'s damage is <strong>doubled</strong>.' },
+    ],
+  },
+  'Soulknife': {
+    3: [
+      { name:'Psionic Power (Rogue)', cat:'Subclass Feature', desc:'You harbor a wellspring of psionic energy — Psionic Energy Dice (d6s) equal to twice your PB. Replenish one die per Short Rest, all on Long Rest. Psi-Bolstered Knack: add one die to a failed proficient skill check. Psychic Whispers: telepathically communicate with up to PB willing creatures for 1 hour.' },
+      { name:'Psychic Blades (Soulknife)', cat:'Subclass Feature', desc:'As part of the Attack action, manifest a Psychic Blade from your free hand — 1d6 Psychic, finesse, thrown 60 ft. You can manifest a second blade for an off-hand Bonus Action attack.' },
+    ],
+    9: [
+      { name:'Soul Blades', cat:'Subclass Feature', desc:'Psychic Blades gain two new uses: <em>Homing Strikes</em> — when you miss with a Psychic Blade, roll one Psionic Energy Die and add it to the attack roll; <em>Psychic Teleportation</em> — Bonus Action: roll a Psionic Energy Die, hurl a Psychic Blade at an unoccupied space you can see, and teleport there (range = the rolled total × 10 ft).' },
+    ],
+    13: [
+      { name:'Psychic Veil', cat:'Subclass Feature', desc:'Magic action: Become Invisible for 1 hour (or until you deal damage or force a save). No spell slot required. Once per Long Rest, or by expending a Psionic Energy Die.', tracked:true, uses:1 },
+    ],
+    17: [
+      { name:'Rend Mind', cat:'Subclass Feature', desc:'When you use Psychic Blades to deal Sneak Attack damage to a creature, you can force a WIS save (DC = 8 + DEX + Prof). On a fail, the creature is <em>Stunned</em> for 1 minute (save end of each of its turns). Once per Long Rest, or by expending 3 Psionic Energy Dice.', tracked:true, uses:1 },
+    ],
+  },
+  'Thief': {
+    3: [
+      { name:'Fast Hands', cat:'Subclass Feature', desc:'You can use the Bonus Action granted by Cunning Action to make a Sleight of Hand check, use Thieves\' Tools, or take the Use an Object action.' },
+      { name:'Second-Story Work', cat:'Subclass Feature', desc:'Climbing no longer costs you extra movement. The distance you cover on a running jump increases by a number of feet equal to your DEX modifier.' },
+    ],
+    9: [
+      { name:'Supreme Sneak', cat:'Subclass Feature', desc:'You gain Expertise in Stealth. While you move no more than half your Speed on the same turn, you also have Advantage on any Dexterity (Stealth) check you make.' },
+    ],
+    13: [
+      { name:'Use Magic Device', cat:'Subclass Feature', desc:'You can ignore all class, race, and level requirements on the use of magic items. You can attune up to <strong>4 items</strong> at once (instead of 3).' },
+    ],
+    17: [
+      { name:'Thief\'s Reflexes', cat:'Subclass Feature', desc:'At the start of combat, you take <strong>two turns</strong> during the first round (first at your normal initiative, second at your initiative −10). You can\'t use this feature if you are Surprised.' },
+    ],
+  },
+  'Swashbuckler': {
+    3: [
+      { name:'Fancy Footwork', cat:'Subclass Feature', desc:'When you make a melee attack against a creature on your turn, that creature can\'t make opportunity attacks against you for the rest of your turn.' },
+      { name:'Rakish Audacity', cat:'Subclass Feature', desc:'Add your CHA modifier to Initiative rolls. You can use Sneak Attack without Advantage if you\'re within 5 ft of the target, no other creatures are within 5 ft of you, and you don\'t have Disadvantage.' },
+    ],
+    9: [
+      { name:'Panache', cat:'Subclass Feature', desc:'Magic action: make a CHA (Persuasion) check contested by the target\'s WIS (Insight). If you win, a hostile target has Disadvantage on attacks against creatures other than you and can\'t make opportunity attacks against creatures other than you (1 min); a non-hostile target is Charmed by you for 1 min.' },
+    ],
+    13: [
+      { name:'Elegant Maneuver', cat:'Subclass Feature', desc:'Bonus Action: gain Advantage on the next Acrobatics or Athletics check you make this turn.' },
+    ],
+    17: [
+      { name:'Master Duelist', cat:'Subclass Feature', desc:'When you miss with an attack roll, you can roll it again with Advantage. Once per Short or Long Rest.', tracked:true, uses:1 },
+    ],
+  },
   // ── SORCERER ──
   'Aberrant Mind': [
     { name:'Telepathic Speech', cat:'Subclass Feature', desc:'As a Bonus Action, choose one creature you can see within 30 ft. You can speak telepathically with each other while within INT modifier × 10 ft of each other (min 10 ft) for 1 minute.' },
@@ -13025,23 +13341,68 @@ const SUBCLASS_FEATURE_DATA = {
   'The Great Old One': [
     { name:'Awakened Mind', cat:'Subclass Feature', desc:'You can communicate telepathically with any creature you can see within 30 ft. You don\'t need to share a language with the creature for it to understand your telepathic utterances.' },
   ],
-  // ── WIZARD ──
-  'Abjuration': [
-    { name:'Abjuration Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Abjuration spell into your spellbook is halved.' },
-    { name:'Arcane Ward', cat:'Subclass Feature', desc:'When you cast an Abjuration spell of 1st level or higher, create a magical ward with HP equal to twice your Wizard level + INT modifier. You take damage through the ward; it recharges when you cast Abjuration spells (regain HP equal to twice the spell\'s level).' },
-  ],
-  'Divination': [
-    { name:'Divination Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy a Divination spell into your spellbook is halved.' },
-    { name:'Portent', cat:'Subclass Feature', desc:'When you finish a Long Rest, roll two d20s and record the numbers. You can replace any attack roll, saving throw, or ability check (yours or a creature you can see) with one of these rolls. Choose before the roll.', tracked:true, uses:2 },
-  ],
-  'Evocation': [
-    { name:'Evocation Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Evocation spell into your spellbook is halved.' },
-    { name:'Sculpt Spells', cat:'Subclass Feature', desc:'When you cast an Evocation spell affecting other creatures you can see, choose up to your INT modifier of them — they automatically succeed on their saving throws and take no damage if they would normally take half damage on a success.' },
-  ],
-  'Illusion': [
-    { name:'Illusion Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Illusion spell into your spellbook is halved.' },
-    { name:'Improved Minor Illusion', cat:'Subclass Feature', desc:'You learn the Minor Illusion cantrip (or another cantrip if you already know it). When you cast Minor Illusion, you can create both a sound and an image with a single casting.' },
-  ],
+  // ── WIZARD (PHB'24 — all 4 subclasses, full 3 / 6 / 10 / 14 progression) ──
+  'Abjuration': {
+    3: [
+      { name:'Abjuration Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Abjuration spell into your spellbook is halved.' },
+      { name:'Arcane Ward', cat:'Subclass Feature', desc:'When you cast an Abjuration spell of 1st level or higher, create a magical ward with HP equal to twice your Wizard level + INT modifier. You take damage through the ward; it recharges when you cast Abjuration spells (regain HP equal to twice the spell\'s level).' },
+    ],
+    6: [
+      { name:'Projected Ward', cat:'Subclass Feature', desc:'When a creature you can see within 30 ft takes damage, use your Reaction to have your Arcane Ward absorb it instead. If the damage exceeds the ward\'s HP, the creature takes the remainder.' },
+      { name:'Counterspell Mastery', cat:'Subclass Feature', desc:'You always have Counterspell and Dispel Magic prepared, and these spells don\'t count against the number of spells you can have prepared.' },
+    ],
+    10: [
+      { name:'Improved Abjuration', cat:'Subclass Feature', desc:'When you cast Counterspell or Dispel Magic, add your INT modifier to the ability check made to cast the spell against another spellcaster.' },
+    ],
+    14: [
+      { name:'Spell Resistance', cat:'Subclass Feature', desc:'You have Advantage on saving throws against spells. Furthermore, you have Resistance against the damage of spells.' },
+    ],
+  },
+  'Divination': {
+    3: [
+      { name:'Divination Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy a Divination spell into your spellbook is halved.' },
+      { name:'Portent', cat:'Subclass Feature', desc:'When you finish a Long Rest, roll two d20s and record the numbers. You can replace any attack roll, saving throw, or ability check (yours or a creature you can see) with one of these rolls. Choose before the roll.', tracked:true, uses:2 },
+    ],
+    6: [
+      { name:'Expert Divination', cat:'Subclass Feature', desc:'When you cast a Divination spell of 2nd level or higher using a spell slot, you regain one expended spell slot of a level lower than the one used (max 5th).', tracked:true, uses:1 },
+    ],
+    10: [
+      { name:'The Third Eye', cat:'Subclass Feature', desc:'As a Bonus Action, gain one benefit until you\'re Incapacitated or use this again: <em>Darkvision 60 ft</em>, <em>Ethereal Sight 60 ft</em>, <em>Comprehend Languages</em>, or <em>See Invisibility 10 ft</em>.', tracked:true, uses:1 },
+    ],
+    14: [
+      { name:'Greater Portent', cat:'Subclass Feature', desc:'Roll <strong>three d20s</strong> for your Portent feature instead of two.', tracked:true, uses:3 },
+    ],
+  },
+  'Evocation': {
+    3: [
+      { name:'Evocation Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Evocation spell into your spellbook is halved.' },
+      { name:'Sculpt Spells', cat:'Subclass Feature', desc:'When you cast an Evocation spell affecting other creatures you can see, choose up to your INT modifier of them — they automatically succeed on their saving throws and take no damage if they would normally take half damage on a success.' },
+    ],
+    6: [
+      { name:'Potent Cantrip', cat:'Subclass Feature', desc:'When a creature succeeds on a saving throw against your cantrip, the creature takes <strong>half the cantrip\'s damage</strong> (if any) but suffers no additional effect from the cantrip.' },
+    ],
+    10: [
+      { name:'Empowered Evocation', cat:'Subclass Feature', desc:'You can add your INT modifier to one damage roll of any Wizard Evocation spell you cast.' },
+    ],
+    14: [
+      { name:'Overchannel', cat:'Subclass Feature', desc:'When you cast a Wizard spell of 1st–5th level that deals damage, you can deal maximum damage with that spell. The first time you do so, you suffer no adverse effect; if you use it again before a Long Rest, you take <strong>2d12 Necrotic damage per spell level</strong>, immediately after casting (the damage increases by 1d12 each additional use).' },
+    ],
+  },
+  'Illusion': {
+    3: [
+      { name:'Illusion Savant', cat:'Subclass Feature', desc:'The gold and time you must spend to copy an Illusion spell into your spellbook is halved.' },
+      { name:'Improved Minor Illusion', cat:'Subclass Feature', desc:'You learn the Minor Illusion cantrip (or another cantrip if you already know it). When you cast Minor Illusion, you can create both a sound and an image with a single casting.' },
+    ],
+    6: [
+      { name:'Malleable Illusions', cat:'Subclass Feature', desc:'When you cast an illusion spell that has a duration of 1 minute or longer, you can use an Action to change the nature of that illusion (within the spell\'s normal parameters), provided you can see it.' },
+    ],
+    10: [
+      { name:'Illusory Self', cat:'Subclass Feature', desc:'When a creature makes an attack roll against you, use your Reaction to interpose an illusory duplicate — the attack automatically misses. Once used, you can\'t do so again until you finish a Short or Long Rest.', tracked:true, uses:1 },
+    ],
+    14: [
+      { name:'Illusory Reality', cat:'Subclass Feature', desc:'When you cast an illusion spell of 1st level or higher, you can choose one inanimate, nonmagical object that is part of the illusion and make it <strong>real</strong> for 1 minute (no longer an illusion but still appears as one).' },
+    ],
+  },
   // ── DRUID (NEW) ──
   'Circle of the Warden': {
     3: [
@@ -15381,6 +15742,21 @@ window._asiPickerConfirm = function() {
       if (this.innerText != String(v)) this.innerText = String(v);
       this.removeEventListener('blur', fix);
     });
+    // ── Live-update the Spell Preparation Guide as the user types.
+    // Previously only ``applyClassTemplate`` (firing on class change)
+    // re-ran the guide, leaving it stuck after a level bump.
+    if (!el.__guideHooked) {
+      el.__guideHooked = true;
+      const refresh = () => {
+        const className = window._currentClass ||
+          (document.getElementById('class-selector') || {}).value || '';
+        if (!className) return;
+        const lvl = Math.max(1, Math.min(20, parseInt(el.innerText) || 1));
+        if (typeof updateSpellGuide === 'function') updateSpellGuide(className, lvl);
+      };
+      el.addEventListener('input', refresh);
+      el.addEventListener('blur',  refresh);
+    }
   };
 })();
 </script>
@@ -19534,6 +19910,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // ── Parent pushes a saved character JSON; skip the startup splash. ──
       if (msg.type === 'aurora:load-character' && msg.data) {
         try {
+          // Remember the charId so autosave keys it correctly (per-char
+          // localStorage slot — no more cross-character autosave bleed).
+          if (msg.charId) window.__auroraCharId = msg.charId;
           // Cancel any pending startup splash (we won't need it)
           if (window.__pendingStartup) {
             clearTimeout(window.__pendingStartup);
@@ -19556,6 +19935,49 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (err) {
           console.warn('[aurora] load-character failed:', err);
         }
+        return;
+      }
+
+      if (msg.type === 'aurora:set-charid' && msg.charId) {
+        window.__auroraCharId = msg.charId;
+        // Surface the local autosave timestamp (if any) so the React
+        // shell can decide whether to prompt the user to restore it.
+        try {
+          const raw = localStorage.getItem(_autoSaveKey());
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const at = parsed && parsed._autosavedAt;
+            if (at && window.parent && window.parent !== window) {
+              window.parent.postMessage({
+                type: 'aurora:autosave-info',
+                charId: msg.charId,
+                at,
+              }, '*');
+            }
+          }
+        } catch(_e) {}
+        return;
+      }
+
+      // Restore from the local autosave slot for this character.
+      if (msg.type === 'aurora:restore-autosave') {
+        try {
+          if (msg.charId) window.__auroraCharId = msg.charId;
+          const raw = localStorage.getItem(_autoSaveKey());
+          if (raw) {
+            const d = JSON.parse(raw);
+            if (typeof _restoreAllData === 'function') _restoreAllData(d);
+            if (typeof categorizeFeatures === 'function') categorizeFeatures();
+            if (typeof recalcAll === 'function') recalcAll();
+            if (typeof syncActionBoard === 'function') syncActionBoard();
+            if (typeof initDragAndDrop === 'function') initDragAndDrop();
+          }
+        } catch(e) { console.warn('Restore autosave failed:', e); }
+        return;
+      }
+
+      if (msg.type === 'aurora:discard-autosave') {
+        try { localStorage.removeItem(_autoSaveKey()); } catch(_e){}
         return;
       }
 

@@ -63,10 +63,54 @@ export default function Sheet() {
     return () => { if (revokeUrl) URL.revokeObjectURL(revokeUrl); };
   }, [charId]);
 
+  const [pendingAutosave, setPendingAutosave] = useState(null); // { data, at } if a newer local autosave is available
+  const [autosaveTick, setAutosaveTick] = useState(null);
+
+  // Listen for autosave pings from the iframe so we can show the "✓
+  // autosaved 10s ago" pip + know there's a local snapshot newer than
+  // the last Quick Save.
+  useEffect(() => {
+    const onMsg = (ev) => {
+      const m = ev && ev.data;
+      if (m && m.type === "aurora:autosaved" && m.charId === charId) {
+        setAutosaveTick(m.at);
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [charId]);
+
+  useEffect(() => {
+    if (!charId) return;
+    // Check if there's a localStorage autosave newer than the cloud copy.
+    // We only know about it via the iframe (cross-frame storage isolation
+    // doesn't apply here — both share the same origin/localStorage). Ask
+    // the iframe after it's ready.
+    const onMsg = (ev) => {
+      const m = ev && ev.data;
+      if (m && m.type === "aurora:autosave-info" && m.charId === charId && m.at) {
+        const cloudAt = meta?.updated_at ? new Date(meta.updated_at).getTime() : 0;
+        const localAt = new Date(m.at).getTime();
+        // Only prompt if local is at least 5s newer (avoids race with the
+        // first save-on-load triggered by the restore itself).
+        if (localAt > cloudAt + 5000) {
+          setPendingAutosave({ at: m.at });
+        }
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [charId, meta?.updated_at]);
+
   // Push character data into the iframe once ready
   useEffect(() => {
     if (!meta?.data) return;
-    const payload = { type: "aurora:load-character", reqId: "init-" + Date.now(), data: meta.data };
+    const payload = {
+      type: "aurora:load-character",
+      reqId: "init-" + Date.now(),
+      charId,
+      data: meta.data,
+    };
     let attempts = 0;
     let sent = false;
 
@@ -75,6 +119,10 @@ export default function Sheet() {
       if (m && m.type === "aurora:ready" && !sent) {
         const t = iframeRef.current?.contentWindow;
         const t2 = immersiveIframeRef.current?.contentWindow;
+        // Tell the iframe its charId first so any autosave that fires
+        // before the restore completes still lands in the right slot.
+        try { if (t)  t.postMessage({ type: "aurora:set-charid", charId }, "*"); } catch (_) { /* noop */ }
+        try { if (t2) t2.postMessage({ type: "aurora:set-charid", charId }, "*"); } catch (_) { /* noop */ }
         try { if (t) t.postMessage(payload, "*"); } catch (_) { /* noop */ }
         try { if (t2) t2.postMessage(payload, "*"); } catch (_) { /* noop */ }
         sent = true;
@@ -86,6 +134,8 @@ export default function Sheet() {
       if (sent || attempts++ > 8) { clearInterval(interval); return; }
       const t = iframeRef.current?.contentWindow;
       const t2 = immersiveIframeRef.current?.contentWindow;
+      try { if (t)  t.postMessage({ type: "aurora:set-charid", charId }, "*"); } catch (_) { /* noop */ }
+      try { if (t2) t2.postMessage({ type: "aurora:set-charid", charId }, "*"); } catch (_) { /* noop */ }
       try { if (t) t.postMessage(payload, "*"); } catch (_) { /* noop */ }
       try { if (t2) t2.postMessage(payload, "*"); } catch (_) { /* noop */ }
     }, 250);
@@ -94,7 +144,22 @@ export default function Sheet() {
       window.removeEventListener("message", onMsg);
       clearInterval(interval);
     };
-  }, [meta, immersive]);
+  }, [meta, immersive, charId]);
+
+  // Manual restore from autosave: tell the iframe to load its localStorage slot
+  const restoreFromAutosave = () => {
+    const t = (immersive ? immersiveIframeRef.current : iframeRef.current)?.contentWindow;
+    if (!t) return;
+    try { t.postMessage({ type: "aurora:restore-autosave", charId }, "*"); } catch(_) { /* noop */ }
+    setPendingAutosave(null);
+    toast.success("Restored from local autosave. Use Quick Save to push to cloud.");
+  };
+  const discardAutosave = () => {
+    const t = (immersive ? immersiveIframeRef.current : iframeRef.current)?.contentWindow;
+    if (!t) return;
+    try { t.postMessage({ type: "aurora:discard-autosave", charId }, "*"); } catch(_) { /* noop */ }
+    setPendingAutosave(null);
+  };
 
   const requestCharacterFromIframe = () => {
     const win = (immersive ? immersiveIframeRef.current : iframeRef.current)?.contentWindow;
@@ -413,6 +478,55 @@ export default function Sheet() {
           </div>
         )}
       </div>
+
+      {/* Restore-from-autosave prompt — appears only when the iframe
+          reports a locally autosaved snapshot newer than the cloud copy. */}
+      {pendingAutosave && (
+        <div
+          data-testid="autosave-restore-banner"
+          className="px-4 sm:px-6 py-3 bg-amber-900/30 border-y border-amber-600/40 text-parchment flex flex-wrap items-center justify-between gap-3"
+        >
+          <div className="text-sm font-cormorant">
+            <span className="font-cinzel text-[10px] tracking-[0.2em] uppercase text-amber-300 mr-2">
+              Autosave found
+            </span>
+            A newer local autosave from{" "}
+            <span className="text-amber-200">
+              {new Date(pendingAutosave.at).toLocaleString()}
+            </span>{" "}
+            is available. Quick Save (cloud) is from{" "}
+            <span className="text-parchment-muted">
+              {meta?.updated_at ? new Date(meta.updated_at).toLocaleString() : "—"}
+            </span>
+            .
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              data-testid="autosave-restore-btn"
+              onClick={restoreFromAutosave}
+              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-parchment font-cinzel text-[10px] tracking-[0.2em] uppercase border border-amber-500 btn-press"
+            >
+              ⟲ Restore Autosave
+            </button>
+            <button
+              data-testid="autosave-discard-btn"
+              onClick={discardAutosave}
+              className="px-3 py-1.5 border border-edge text-parchment-muted hover:text-parchment font-cinzel text-[10px] tracking-[0.2em] uppercase btn-press"
+            >
+              Keep Quick Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {autosaveTick && (
+        <div
+          data-testid="autosave-tick"
+          className="px-4 sm:px-6 py-1 text-[10px] font-cinzel tracking-[0.2em] uppercase text-emerald-500/70 border-b border-edge"
+        >
+          ✓ Autosaved locally · {new Date(autosaveTick).toLocaleTimeString()}
+        </div>
+      )}
 
       {/* Full-bleed iframe — no borders, no max-width wrapper */}
       <iframe
